@@ -55,8 +55,8 @@ public abstract class PostFactory {
             measure.setValue(ingredientAmount);
             measure.setUnit("unit");
             ingWrapper.setMeasurement(measure);
-            if (this.ingredientService.findByName(ingredientName).isPresent()) {
-                var ingredient = this.ingredientService.findByName(ingredientName).get();
+            if (this.ingredientService.findByName(ingredientName).block() != null) {
+                var ingredient = this.ingredientService.findByName(ingredientName).block();
                 ingWrapper.setIngredient(ingredient);
             } else {
                 var ingredient = new Ingredient();

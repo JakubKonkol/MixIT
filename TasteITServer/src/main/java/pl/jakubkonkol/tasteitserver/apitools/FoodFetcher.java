@@ -40,7 +40,7 @@ public class FoodFetcher {
     private final PostMealFactory postFactory;
     private final String foodFinderURL = "https://themealdb.com/api/json/v1/1/search.php?f=";
     private final String ingredientListURL = "https://www.themealdb.com/api/json/v1/1/list.php?i=list";
-//    private final ExecutorService executor = Executors.newFixedThreadPool(3);
+    private final ExecutorService executor = Executors.newCachedThreadPool();
 
     /**
      * Populates the database with food data
@@ -59,11 +59,20 @@ public class FoodFetcher {
      * @return List of food data
      */
     public List<Post> searchFoodForEveryLetter() {
-        List<Post> foodList = new ArrayList<>();
+        List<Future<List<Post>>> futures = new ArrayList<>();
         for (char c = 'a'; c <= 'z'; c++) {
             var url = foodFinderURL + c;
-            foodList.addAll(fetchFood(url));
+            futures.add(executor.submit(() -> fetchFood(url)));
         }
+        List<Post> foodList = new ArrayList<>();
+        futures.forEach(f -> {
+            try {
+                foodList.addAll(f.get());
+
+            } catch (Exception e) {
+                LOGGER.log(Level.WARNING, "Failed to fetch food: " + e.getMessage());
+            }
+        });
         return foodList;
     }
 

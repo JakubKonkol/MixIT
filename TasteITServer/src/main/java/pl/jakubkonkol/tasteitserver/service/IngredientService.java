@@ -1,52 +1,49 @@
 package pl.jakubkonkol.tasteitserver.service;
 
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Service;
+import lombok.RequiredArgsConstructor;
 import pl.jakubkonkol.tasteitserver.model.Ingredient;
 import pl.jakubkonkol.tasteitserver.repository.IngredientRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.util.List;
-import java.util.Optional;
-
 
 @Service
 @RequiredArgsConstructor
 public class IngredientService {
     private final IngredientRepository ingredientRepository;
+
     @Cacheable("ingredients")
-    public Optional<Ingredient> findByName(String name) {
+    public Mono<Ingredient> findByName(String name) {
         if (name == null) {
             throw new IllegalArgumentException("Name cannot be null.");
         }
         return ingredientRepository.findByName(name);
     }
 
-    public void save(Ingredient ingredient) {
+    public Mono<Ingredient> save(Ingredient ingredient) {
         if (ingredient == null) {
             throw new IllegalArgumentException("Ingredient cannot be null.");
         }
-        if(ingredientRepository.findByName(ingredient.getName()).isPresent()){
-            return;
-        }
-        ingredientRepository.save(ingredient);
+        return ingredientRepository.findByName(ingredient.getName())
+                .switchIfEmpty(ingredientRepository.save(ingredient));
     }
-    public void saveAll(List<Ingredient> ingredients) {
+
+    public Flux<Ingredient> saveAll(List<Ingredient> ingredients) {
         if (ingredients == null) {
-            throw new IllegalArgumentException("List of drinks cannot be null.");
+            throw new IllegalArgumentException("List of ingredients cannot be null.");
         }
-        ingredients.forEach(ingredient -> {
-            if (ingredient == null) {
-                throw new IllegalArgumentException("Ingredient cannot be null.");
-            }
-            save(ingredient);
-        });
+        return Flux.fromIterable(ingredients)
+                .flatMap(this::save);
     }
-    public void deleteAll() {
-        ingredientRepository.deleteAll();
+
+    public Mono<Void> deleteAll() {
+        return ingredientRepository.deleteAll();
     }
-    public List<Ingredient> getAll() {
+
+    public Flux<Ingredient> getAll() {
         return ingredientRepository.findAll();
     }
 }

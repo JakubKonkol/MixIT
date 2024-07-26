@@ -13,6 +13,9 @@ import pl.jakubkonkol.tasteitserver.service.PostService;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -29,6 +32,7 @@ public class DrinkFetcher {
     private static final Logger LOGGER = Logger.getLogger(DrinkFetcher.class.getName());
     private final String drinkFinderURL = "https://thecocktaildb.com/api/json/v1/1/search.php?f=";
     private final PostDrinkFactory postFactory;
+    private final ExecutorService executor = Executors.newCachedThreadPool();
 
     public void populateDBWithDrinks() throws IOException {
         var drinks = fetchDrinks();
@@ -37,12 +41,19 @@ public class DrinkFetcher {
     }
 
     private List<Post> fetchDrinks() throws IOException {
-        List<Post> drinkList = new ArrayList<>();
+        List<Future<List<Post>>> futures = new ArrayList<>();
         for (char c = 'a'; c <= 'z'; c++) {
             var url = drinkFinderURL + c;
-            drinkList.addAll(fetchDrinksByFirstLetter(url)) ;
+            futures.add(executor.submit(() -> fetchDrinksByFirstLetter(url)));
         }
-
+        List<Post> drinkList = new ArrayList<>();
+        futures.forEach(future -> {
+            try {
+                drinkList.addAll(future.get());
+            } catch (Exception e) {
+                LOGGER.warning("Failed to fetch drink data: " + e.getMessage());
+            }
+        });
         return drinkList;
     }
 
